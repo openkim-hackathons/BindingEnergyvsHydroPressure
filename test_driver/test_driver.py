@@ -59,19 +59,19 @@ class TestDriver(CrystalGenomeTestDriver):
         pressure_array_pos = pos_results[4]
         #-------------------------------------------------------------------------------------------------------
         #sort the -ve array in ascending order first and then remove the last element
-        volume_per_atom_1.sort()
+        volume_per_atom_1.reverse()
         volume_per_atom_1 = volume_per_atom_1[:-1]
         
-        volume_per_formula_1.sort()
+        volume_per_formula_1.reverse()
         volume_per_formula_1 = volume_per_formula_1[:-1]
 
-        binding_potential_energy_per_atom_1.sort()
+        binding_potential_energy_per_atom_1.reverse()
         binding_potential_energy_per_atom_1 = binding_potential_energy_per_atom_1[:-1]
 
-        binding_potential_energy_per_formula_1.sort()
+        binding_potential_energy_per_formula_1.reverse()
         binding_potential_energy_per_formula_1 = binding_potential_energy_per_formula_1[:-1]
 
-        pressure_array_neg.sort()
+        pressure_array_neg.reverse()
         pressure_array_neg = pressure_array_neg[:-1]
         
         #concatenate arrays for -ve and +ve pressure
