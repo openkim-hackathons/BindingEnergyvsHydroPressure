@@ -2,12 +2,14 @@
 ==========================================
 kim-tools package. See https://kim-tools.readthedocs.io for more information.
 """
-from kim_tools import CrystalGenomeTestDriver
-from kim_tools import get_stoich_reduced_list_from_prototype
+import shutil
+from os import path
+from kim_tools import (SingleCrystalTestDriver, get_stoich_reduced_list_from_prototype, minimize_wrapper)
+#might not need kim calculator
 from ase.calculators.kim import KIM
 from .helper_functions import binding_potential_energy
 
-class TestDriver(CrystalGenomeTestDriver):
+class TestDriver(SingleCrystalTestDriver):
     def _calculate(self, max_pressure_scale: float = 1e-2, num_steps: int = 10, **kwargs):
         """
         Computes the energy vs. pressure curve for isotropic expansion and compression. 
@@ -21,24 +23,30 @@ class TestDriver(CrystalGenomeTestDriver):
         
         # The base class provides self.atoms, an ase.Atoms object representing the initial configuration of the crystal.
         # Use this configuration to evaluate the material property of interest
-        original_cell = self.atoms.get_cell()
-        num_atoms = len(self.atoms)
+        original_atoms = self._get_atoms()
+        original_cell = original_atoms.get_cell()
+        num_atoms = len(original_atoms)
         
         #Create temporary atoms object for negative pressure
-        atoms_tmp = self.atoms.copy()
+        atoms_tmp = original_atoms.copy()
         atoms_tmp.calc = self._calc
         # Besides temperature, stress, and atoms, you may wish to access other attributes of the base class for information about 
         # the material, such as its symmetry-reduced AFLOW prototype label. Here we use it to get information about the stoichiometry of the crystal.
         # See the API documentation for CrystalGenomeTestDriver for more information:
         # https://kim-tools.readthedocs.io/en/latest/kim_tools.html#kim_tools.CrystalGenomeTestDriver
-        num_atoms_in_formula = sum(get_stoich_reduced_list_from_prototype(self.prototype_label))
+        prototype_label = self._get_nominal_crystal_structure_npt()["prototype-label"][
+            "source-value"
+        ]
+        num_atoms_in_formula = sum(get_stoich_reduced_list_from_prototype(prototype_label))
         original_step_size = max_pressure_scale/num_steps
         disclaimer = None
 
         print('\nPerforming energy scan...\n')
+        #Scale factor for the step size
+        k=1
         #Calculation of binding energy for negative pressure
-        step_size = -original_step_size
-        neg_results = binding_potential_energy(num_steps, step_size, num_atoms, atoms_tmp, num_atoms_in_formula)
+        step_size = -k*original_step_size
+        neg_results = binding_potential_energy(num_steps, step_size, num_atoms, atoms_tmp, num_atoms_in_formula, self)
         volume_per_atom_1 = neg_results[0]
         volume_per_formula_1 = neg_results[1]
         binding_potential_energy_per_atom_1 = neg_results[2]
@@ -47,11 +55,13 @@ class TestDriver(CrystalGenomeTestDriver):
         
         #-------------------------------------------------------------------------------------------------------
         #redefine the atom object for positive pressure calculation
-        atoms_tmp_1 = self.atoms.copy()
+        atoms_tmp_1 = original_atoms.copy()
         atoms_tmp_1.calc = self._calc
+        #scale the step size for positive pressure
+        k=1
         #Calculation of binding energy for positive pressure
-        step_size = original_step_size
-        pos_results = binding_potential_energy(num_steps, step_size, num_atoms, atoms_tmp_1, num_atoms_in_formula)
+        step_size = k*original_step_size
+        pos_results = binding_potential_energy(num_steps, step_size, num_atoms, atoms_tmp_1, num_atoms_in_formula, self)
         volume_per_atom_2 = pos_results[0]
         volume_per_formula_2 = pos_results[1]
         binding_potential_energy_per_atom_2 = pos_results[2]
@@ -89,15 +99,15 @@ class TestDriver(CrystalGenomeTestDriver):
         # property_name can be the full "property-id" field in your Property Definition, or the "Property Name",
         # which is just the short name after the slash, as used here. You can also specify whether your property
         # includes stress and temperature (no by default), and have the option to specify a disclaimer.
-        self._add_property_instance_and_common_crystal_genome_keys("energy-vs-pressure-isotropic-crystal",
-                                                                   write_stress=False, write_temp=False, disclaimer=disclaimer)
+        self._add_property_instance_and_common_crystal_genome_keys(property_name="energy-vs-pressure-isotropic-crystal",
+                                                                   write_stress=False, write_temp=False, disclaimer=disclaimer,)
 
         # This method adds additional fields to your property instance by specifying the key names you defined
         # in your property definition and providing units if necessary.
         self._add_key_to_current_property_instance("volume-per-atom",volume_per_atom,
-                                                   units="angstrom^3")
+                                                   unit="angstrom^3")
         self._add_key_to_current_property_instance("volume-per-formula",volume_per_formula,
-                                                   units="angstrom^3")
+                                                   unit="angstrom^3")
 
         # You may also provide a dictionary supplying uncertainty information. It is optional, and normally
         # would not be reported for a deterministic calculation like this, only one involving some statistics,
@@ -108,12 +118,12 @@ class TestDriver(CrystalGenomeTestDriver):
         }
 
         self._add_key_to_current_property_instance("binding-potential-energy-per-atom",binding_potential_energy_per_atom,
-                                                   units="eV",uncertainty_info=uncertainty_info)
+                                                   unit="eV",uncertainty_info=uncertainty_info)
         self._add_key_to_current_property_instance("binding-potential-energy-per-formula",binding_potential_energy_per_formula,
-                                                   units="eV",uncertainty_info=uncertainty_info)
+                                                   unit="eV",uncertainty_info=uncertainty_info)
         
         #Adding the pressure in the property definition
         self._add_key_to_current_property_instance("pressure", pressure_array, 
-                                                   units="GPa")
+                                                   unit="GPa")
         # If your Test Driver reports multiple Property Instances, repeat the process above for each one.
 
