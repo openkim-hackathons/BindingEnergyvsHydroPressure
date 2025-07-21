@@ -27,9 +27,22 @@ class TestDriver(SingleCrystalTestDriver):
         original_cell = original_atoms.get_cell()
         num_atoms = len(original_atoms)
         
+        # Here we will use the prototype label to infer the number of atoms per
+        # stoichiometric formula
+
+        prototype_label = self._get_nominal_crystal_structure_npt()["prototype-label"][
+            "source-value"
+        ]
+
+        num_atoms_in_formula = sum(
+            get_stoich_reduced_list_from_prototype(prototype_label)
+        )
+
         #Create temporary atoms object for negative pressure
-        atoms_tmp = original_atoms.copy()
-        atoms_tmp.calc = self._calc
+        #you have used atoms_tmp in the past. You do not have to use it now.
+        #atoms_tmp = original_atoms.copy()
+        #atoms_tmp.calc = self._calc
+        
         # Besides temperature, stress, and atoms, you may wish to access other attributes of the base class for information about 
         # the material, such as its symmetry-reduced AFLOW prototype label. Here we use it to get information about the stoichiometry of the crystal.
         # See the API documentation for CrystalGenomeTestDriver for more information:
@@ -46,7 +59,7 @@ class TestDriver(SingleCrystalTestDriver):
         k=1
         #Calculation of binding energy for negative pressure
         step_size = -k*original_step_size
-        neg_results = binding_potential_energy(num_steps, step_size, num_atoms, atoms_tmp, num_atoms_in_formula, self)
+        neg_results = binding_potential_energy(num_steps, step_size, num_atoms, original_cell, original_atoms, num_atoms_in_formula, self)
         volume_per_atom_1 = neg_results[0]
         volume_per_formula_1 = neg_results[1]
         binding_potential_energy_per_atom_1 = neg_results[2]
@@ -61,7 +74,7 @@ class TestDriver(SingleCrystalTestDriver):
         k=1
         #Calculation of binding energy for positive pressure
         step_size = k*original_step_size
-        pos_results = binding_potential_energy(num_steps, step_size, num_atoms, atoms_tmp_1, num_atoms_in_formula, self)
+        pos_results = binding_potential_energy(num_steps, step_size, num_atoms, original_cell, atoms_tmp_1, num_atoms_in_formula, self)
         volume_per_atom_2 = pos_results[0]
         volume_per_formula_2 = pos_results[1]
         binding_potential_energy_per_atom_2 = pos_results[2]
@@ -94,7 +107,8 @@ class TestDriver(SingleCrystalTestDriver):
         print('pressure_array:',pressure_array)
         # Now it is time to write the output in the format you created in your Property Definition. The base class provides utility methods
         # to facilitate this process.
-        
+        #since we have been changing the nominal crystal structure, we must reset it to the original structure
+        self._update_nominal_parameter_values(original_atoms)
         # This method initializes the Property Instance and adds the keys common to all Crystal Genome properties.
         # property_name can be the full "property-id" field in your Property Definition, or the "Property Name",
         # which is just the short name after the slash, as used here. You can also specify whether your property

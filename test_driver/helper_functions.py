@@ -55,7 +55,7 @@ def binding_potential_energy(no_of_steps, step_size, num_atoms, atoms_tmp, num_a
 from kim_tools import minimize_wrapper
 import copy
 # function to calculate the binding energy and volume per atom to dump in the output 
-def binding_potential_energy(no_of_steps, step_size, num_atoms, atoms_tmp, num_atoms_in_formula, test_driver_instance):
+def binding_potential_energy(no_of_steps, step_size, num_atoms, original_cell, original_atoms, num_atoms_in_formula, test_driver_instance):
     #initialize the arrays to store the volume and binding energy
     binding_potential_energy_per_atom = []
     binding_potential_energy_per_formula = []
@@ -69,23 +69,24 @@ def binding_potential_energy(no_of_steps, step_size, num_atoms, atoms_tmp, num_a
     for i in range(0, no_of_steps + 1):
         problem_occurred = False
         pressure_scale = 0 + step_size * i  # pressure scale
-        atoms_for_current_step = atoms_tmp.copy()
+        atoms_for_current_step = original_atoms
+        atoms_for_current_step.set_cell(original_cell)
         # reattach the original calculator to the copied atoms object.
-        atoms_for_current_step.calc = original_calculator
+        #atoms_for_current_step.calc = original_calculator
         try:
             # Get the potential energy and volume
             print("Attempting minimization...")
             minimize_wrapper(atoms_for_current_step, variable_cell=True, fix_symmetry=True, flt_kwargs={'scalar_pressure': pressure_scale})
             print("Minimization successful.")
+            potential_energy = atoms_for_current_step.get_potential_energy()
+            volume = atoms_for_current_step.get_volume()
+            current_volume_per_atom = volume / num_atoms
             # check that the material has not undergone a phase transformation, so here any point where the crystal symmetry has changed are not recorded in the curve.
             try:
-                #retrieve properties
-                potential_energy = atoms_for_current_step.get_potential_energy()
-                volume = atoms_for_current_step.get_volume()
                 print(f"Retrieved potential energy: {potential_energy:0.5f}, Volume: {volume:0.5f}") #debug print
                 if test_driver_instance._verify_unchanged_symmetry(atoms_for_current_step):
                     print("Symmetry remains unchanged for this step")
-                    current_volume_per_atom = volume / num_atoms
+                    #retrieve properties
                     print('Step: %d, Pressure: %5.5f, Volume: %5.5f, Energy: %5.5f' % (i, pressure_scale, volume, potential_energy))
                 else:
                     print("Atoms underwent a symmetry change")

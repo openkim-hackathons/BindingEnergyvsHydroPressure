@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath('/home/openkim/test-drivers/BindingEnergyvsHydro
 # For Al, the potential used is: MEAM_LAMMPS_JeongParkDo_2018_PdAl__MO_616482358807_002
 # for Fe: the potnetial used is: MEAM_LAMMPS_KoJimLee_2012_FeP__MO_179420363944_002
 from test_driver.test_driver import TestDriver
-kim_model_name = "MEAM_LAMMPS_KoJimLee_2012_FeP__MO_179420363944_002"
+kim_model_name = "MEAM_LAMMPS_JeongParkDo_2018_PdAl__MO_616482358807_002"
 test_driver = TestDriver(kim_model_name)
 
 ############################################################################
@@ -17,18 +17,19 @@ test_driver = TestDriver(kim_model_name)
 from ase.build import bulk
 a0 = 4.0
 #atoms = BaseCenteredCubic("Fe", latticeconstant=a0)
-atoms = bulk("Fe", crystalstructure="bcc", a=a0)
+atoms = bulk("Al", crystalstructure="fcc", a=a0)
 
 #pressure is in units of ev/Angstrom^3
 print ('\nRUNNING TEST DRIVER ON WURTZITE ATOMS OBJECT\n')
-test_driver(atoms,optimize=True,max_pressure_scale=6e-2,num_steps=30,temperature_K=0)
+#change max_pressure_scale to change the range of pressure values
+computed_property_instances = test_driver(atoms,optimize=True,max_pressure_scale=1e-2,num_steps=20,temperature_K=0)
 ############################################################################
 
 print('\n--------------------------------------')
 
-print('Lattice constant a: %f %s'%(
-    test_driver.property_instances[0]['a']['source-value'],
-    test_driver.property_instances[0]['a']['source-unit']
+print("Lattice constant a: %f %s" %(
+    computed_property_instances[0]["a"]["source-value"],
+    computed_property_instances[0]["a"]["source-unit"]
 ))
 
 print('--------------------------------------\n')
